@@ -205,7 +205,7 @@ def stem_query(processed_queries):
     stemmer = PorterStemmer()
     stemmed_terms = []
     for query in processed_queries:
-        terms = list(query.values())[0]
+        terms = (list(query.values())[0]).split(' ')
         for term in terms:
             stemmed_term = stemmer.stem(term)
             stemmed_terms.append(stemmed_term)
@@ -248,7 +248,32 @@ def get_doc(doc_no, posting_list_row):
             term_list[row[0]] = row[1][doc_no]
 
 
+def get_lexicon_and_pl_rows():
+    with open("./result/lexicon.csv", 'r', encoding='utf-8') as l:
+        lexicon_reader = csv.reader(l)
+        lexicon_column = [row[0] for row in lexicon_reader]
+    with open("./result/posting_list.csv", 'r', encoding='utf-8') as p:
+        posting_list_reader = csv.reader(p)
+        posting_list_row = [row for row in posting_list_reader]
+    return lexicon_column, posting_list_row
+
+
+def output_results_txt(score_dict, query):
+    score_dict = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
+    num = 1
+    for i in dict(score_dict).keys():
+        with open('./results.txt', 'a+') as s:
+            s.write("{} 0 {} {} {} TfIdf\n".format(list(query.keys())[0], i, num, dict(score_dict)[i]))
+            num += 1
+        if num > 100:
+            break
+    return
+
+
 def calculate_cosine(queries, dictionary):
+
+    lexicon_column, posting_list_row = get_lexicon_and_pl_rows()
+
     # 每一条query
     for query in queries:
         tf_dict = calculate_query_tf(query)
@@ -257,12 +282,6 @@ def calculate_cosine(queries, dictionary):
         denominator_right = 0
         denominator_left = 0
         doc_list = []
-        with open("./result/lexicon.csv", 'r', encoding='utf-8') as l:
-            lexicon_reader = csv.reader(l)
-            lexicon_column = [row[0] for row in lexicon_reader]
-        with open("./result/posting_list.csv", 'r', encoding='utf-8') as p:
-            posting_list_reader = csv.reader(p)
-            posting_list_row = [row for row in posting_list_reader]
 
         # 获取所有包含query中任意词的文件列表
         for key in tf_dict.keys():
@@ -284,14 +303,54 @@ def calculate_cosine(queries, dictionary):
             cosine = numerator / (math.sqrt(denominator_left) * math.sqrt(denominator_right))
             score_dict[doc] = cosine
 
-        score_dict = sorted(score_dict.items(), key=lambda x: x[1], reverse=True)
-        num = 1
-        for i in dict(score_dict).keys():
-            with open('./results.txt', 'a+') as s:
-                s.write("{} 0 {} {} {} TfIdf\n".format(list(query.keys())[0], i, num, dict(score_dict)[i]))
-                num += 1
-            if num > 100:
-                break
+        output_results_txt(score_dict, query)
+
+
+def calculate_bm25(queries, dictionary):
+    n = 1765
+    k1 = 2
+    b = 0.75
+    length = 0
+    for doc in dictionary.keys():
+        length += len(dictionary[doc][0])
+    mean_length = length / n
+
+    lexicon_column, posting_list_row = get_lexicon_and_pl_rows()
+
+    score_dict = {}
+
+    # 获取所有包含query中任意词的文件列表
+    for query in queries:
+        doc_list = []
+        term_idf = {}
+        bm25 = 0
+        for term in list(query.values())[0]:
+            if term not in lexicon_column:
+                continue
+            term_id = lexicon_column.index(term)
+            doc_sublist = eval(posting_list_row[term_id][1]).keys()
+            term_df = eval(posting_list_row[term_id][3])
+            idf = math.log((n - term_df + 0.5) / (term_df + 0.5))
+            term_idf[term] = idf
+            for doc in doc_sublist:
+                if doc not in doc_list:
+                    doc_list.append(doc)
+
+        for doc in doc_list:
+            for term in list(query.values())[0]:
+                if term not in lexicon_column:
+                    continue
+                term_id = lexicon_column.index(term)
+                if str(term_id) in dictionary[doc][0].keys():
+                    f_i = dictionary[doc][0][str(term_id)]
+                    bm25 += term_idf[term] * (f_i * 3) / (f_i + k1 * (0.25 + b * (len(dictionary[doc][0]) / mean_length)))
+                else:
+                    continue
+            score_dict[doc] = bm25
+
+        output_results_txt(score_dict, query)
+
+
 
 
 def main():
@@ -301,8 +360,9 @@ def main():
     single_term_query = single_term_queries(processed_queries)
     stemmed_query = stem_query(single_term_query)
     dictionary = build_dictionary()
-    calculate_cosine(single_term_query, dictionary)
-
+    # dictionary = {}
+    # calculate_cosine(single_term_query, dictionary)
+    calculate_bm25(single_term_query, dictionary)
 
 
 
