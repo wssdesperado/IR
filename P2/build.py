@@ -373,10 +373,11 @@ def update_lexicon_and_posting_list(lexicon, posting_list, term, doc_no, term_id
         index = lexicon[term]
         if index in posting_list.keys():
             posting_list[index][1] += 1
-            if posting_list[index][0].find(doc_no) != -1:
+            if doc_no in posting_list[index][0].keys():
+                posting_list[index][0][doc_no] += 1
                 return term_id, file_num
             else:
-                posting_list[index][0] += ", " + doc_no
+                posting_list[index][0][doc_no] = 1
         else:
             if constraint_size != 0 and len(posting_list.keys()) >= constraint_size:
                 file_num = generate_temp_files_for_merging(posting_list, file_num)
@@ -386,7 +387,7 @@ def update_lexicon_and_posting_list(lexicon, posting_list, term, doc_no, term_id
         if constraint_size != 0 and len(posting_list.keys()) >= constraint_size:
             file_num = generate_temp_files_for_merging(posting_list, file_num)
         lexicon.setdefault(term, term_id)
-        posting_list.setdefault(term_id, []).append(doc_no)
+        posting_list.setdefault(term_id, []).append({doc_no: 1})
         posting_list.setdefault(term_id, []).append(1)
         term_id = term_id + 1
     return term_id, file_num
@@ -428,14 +429,14 @@ def generate_output_csv(lexicon, posting_list, mode, file_num, constraint_size, 
             if mode == 3:
                 if posting_list[index][1] >= 6:
                     csv_lexicon.writerow((term, num))
-                    csv_posting_list.writerow((num, posting_list[index][0], posting_list[index][1], len(posting_list[index][0].split(", "))))
+                    csv_posting_list.writerow((num, posting_list[index][0], posting_list[index][1], len(posting_list[index][0].values())))
                     num += 1
             elif mode == 2:
                 csv_lexicon.writerow((term, index))
                 csv_posting_list.writerow((index, posting_list[index][0], posting_list[index][1], len(posting_list[index][0].keys())))
             else:
                 csv_lexicon.writerow((term, index))
-                csv_posting_list.writerow((index, posting_list[index][0], posting_list[index][1], len(posting_list[index][0].split(", "))))
+                csv_posting_list.writerow((index, posting_list[index][0], posting_list[index][1], len(posting_list[index][0].values())))
     else:
         for term_id in posting_list.keys():
             csv_posting_list.writerow((term_id, posting_list[term_id][0], posting_list[term_id][1]))
