@@ -43,7 +43,7 @@ stopwords_path = "./stops.txt"
 
 
 def import_stopwords():
-    stopwords = [words for words in open(stopwords_path, 'r').read().split('\n')]
+    stopwords = [words for words in open(stopwords_path, 'r', encoding='utf-8', newline='').read().split('\n')]
     return stopwords
 
 
@@ -244,7 +244,7 @@ def handle_special_tokens(sentence):
         sentence = str.replace(sentence, digits, unified_digits)
     # hyphenated terms
     hyphenated_terms = re.compile(r'[a-zA-Z]+-[a-zA-Z]+(?:-[a-zA-Z]+)?')
-    stopwords = [words for words in open(stopwords_path, 'r').read().split('\n')]
+    stopwords = [words for words in open(stopwords_path, 'r', encoding='utf-8', newline='').read().split('\n')]
     for combination in hyphenated_terms.findall(sentence):
         alphabets = re.findall(r'[a-zA-Z]+', combination)
         substitution = ""
@@ -406,18 +406,27 @@ def generate_stem_index(sentence, lexicon, posting_list, term_id, file_num, cons
 
 
 def generate_output_csv(lexicon, posting_list, mode, file_num, constraint_size, output_dir):
-    if os.path.exists(output_dir+"lexicon.csv"):
-        os.remove(output_dir+"lexicon.csv")
-    if os.path.exists(output_dir+"posting_list.csv"):
+    index = ""
+    if mode == 1:
+        index = "single"
+    elif mode == 2:
+        index = "positional"
+    elif mode == 3:
+        index = "phrase"
+    elif mode == 4:
+        index = "stem"
+    if os.path.exists(output_dir+"lexicon_" + index + ".csv"):
+        os.remove(output_dir+"lexicon_" + index + ".csv")
+    if os.path.exists(output_dir+"posting_list_" + index + ".csv"):
         os.remove(output_dir+"posting_list.csv")
-    lexicon_f = open(output_dir+"lexicon.csv", 'a')
+    lexicon_f = open(output_dir+"lexicon_" + index + ".csv", 'a', encoding='utf-8', newline='')
     csv_lexicon = csv.writer(lexicon_f)
     csv_lexicon.writerow(('term', 'term_id'))
     if constraint_size != 0:
-        posting_list_f = open("./temp/" + str(file_num) + ".csv", 'a')
+        posting_list_f = open("./temp/" + str(file_num) + ".csv", 'a', encoding='utf-8', newline='')
         csv_posting_list = csv.writer(posting_list_f)
     else:
-        posting_list_f = open(output_dir+"posting_list.csv", 'a')
+        posting_list_f = open(output_dir+"posting_list_" + index + ".csv", 'a', encoding='utf-8', newline='')
         csv_posting_list = csv.writer(posting_list_f)
         csv_posting_list.writerow(('term_id', 'doc_id', 'term_frequency', 'df'))
 
@@ -450,7 +459,7 @@ def generate_output_csv(lexicon, posting_list, mode, file_num, constraint_size, 
 
 
 def generate_temp_files_for_merging(posting_list, file_num):
-    with open("./temp/" + str(file_num) + ".csv", 'a') as temp_file:
+    with open("./temp/" + str(file_num) + ".csv", 'a', encoding='utf-8', newline='') as temp_file:
         sorted_posting_list = sorted(posting_list, key=lambda x: x)
         temp_file_writer = csv.writer(temp_file)
         for term_id in sorted_posting_list:
@@ -463,20 +472,20 @@ def generate_temp_files_for_merging(posting_list, file_num):
 def merge(file_num, output_dir):
     result_num = 1
     if file_num == 1:
-        posting_list_csv = open(output_dir+"posting_list.csv", 'a')
+        posting_list_csv = open(output_dir+"posting_list.csv", 'a', encoding='utf-8', newline='')
         posting_list_writer = csv.writer(posting_list_csv)
         posting_list_writer.writerow(("term_id", "doc_id", "frequency"))
-        temp_file_csv = open("./temp/" + str(file_num) + ".csv", 'r+')
+        temp_file_csv = open("./temp/" + str(file_num) + ".csv", 'r+', encoding='utf-8', newline='')
         temp_file_reader = csv.reader(temp_file_csv)
         for line in temp_file_reader:
             posting_list_writer.writerow((line[0], line[1], line[2]))
     else:
-        temp_result = open("./temp/result" + str(result_num) + ".csv", 'a')
+        temp_result = open("./temp/result" + str(result_num) + ".csv", 'a', encoding='utf-8', newline='')
         temp_result_writer = csv.writer(temp_result)
-        with open("./temp/" + str(1) + ".csv", 'r+') as f:
+        with open("./temp/" + str(1) + ".csv", 'r+', encoding='utf-8', newline='') as f:
             reader = csv.reader(f)
             row_1 = [row for row in reader]
-        with open("./temp/" + str(2) + ".csv", 'r+') as f:
+        with open("./temp/" + str(2) + ".csv", 'r+', encoding='utf-8', newline='') as f:
             reader = csv.reader(f)
             row_2 = [row for row in reader]
         i = j = 0
@@ -513,12 +522,12 @@ def merge(file_num, output_dir):
         result_num += 1
         if file_num >= 3:
             for num in range(3, file_num + 1):
-                with open("./temp/result" + str(result_num - 1) + ".csv", 'r+') as temp_result:
+                with open("./temp/result" + str(result_num - 1) + ".csv", 'r+', encoding='utf-8', newline='') as temp_result:
                     temp_result_reader = csv.reader(temp_result)
                     row_r = [row for row in temp_result_reader]
-                temp_result_new = open("./temp/result" + str(result_num) + ".csv", 'a')
+                temp_result_new = open("./temp/result" + str(result_num) + ".csv", 'a', encoding='utf-8', newline='')
                 temp_result_new_writer = csv.writer(temp_result_new)
-                with open("./temp/" + str(num) + ".csv", 'r') as temp_file_next:
+                with open("./temp/" + str(num) + ".csv", 'r', encoding='utf-8', newline='') as temp_file_next:
                     temp_file_next_reader = csv.reader(temp_file_next)
                     row_3 = [row for row in temp_file_next_reader]
                 m = n = 0
@@ -551,10 +560,10 @@ def merge(file_num, output_dir):
                             (row_r[m][0], row_r[m][1], row_r[m][2]))
                 temp_result_new.close()
                 result_num += 1
-        posting_list_csv = open(output_dir+"posting_list.csv", 'a')
+        posting_list_csv = open(output_dir+"posting_list.csv", 'a', encoding='utf-8', newline='')
         posting_list_writer = csv.writer(posting_list_csv)
         posting_list_writer.writerow(("term_id", "doc_id", "frequency", "df"))
-        with open("./temp/result" + str(result_num - 1) + ".csv", 'r+') as temp_result:
+        with open("./temp/result" + str(result_num - 1) + ".csv", 'r+', encoding='utf-8', newline='') as temp_result:
             temp_result_reader = csv.reader(temp_result)
             for line in temp_result_reader:
                 posting_list_writer.writerow((line[0], line[1], line[2], len(line[1].split(", "))))
@@ -584,9 +593,6 @@ def main():
         print("Wrong Parameter!")
         return
     if not os.path.exists(output_dir):
-        os.mkdir(output_dir)
-    else:
-        shutil.rmtree(output_dir)
         os.mkdir(output_dir)
     posting_list = {}
     lexicon = {}
